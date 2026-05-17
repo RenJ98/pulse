@@ -896,7 +896,7 @@
     position: relative;
   }
 
-  /* GRID-anchored display: decimal point is locked at column boundary (visual center) */
+  /* Restored organic layout: inline-flex, decimal point as ::before pseudo, integer width grows naturally */
   .money-display {
     font-family: 'Fraunces', serif;
     font-weight: 700;
@@ -904,51 +904,33 @@
     line-height: 0.9;
     letter-spacing: -0.02em;
     position: relative;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: inline-flex;
     align-items: baseline;
-    width: 100%;
     text-shadow: 0 0 60px var(--accent-glow);
-    font-variant-numeric: tabular-nums;
-  }
-  .money-left {
-    justify-self: end;
-    display: inline-flex;
-    align-items: baseline;
-    white-space: nowrap;
-  }
-  .money-right {
-    justify-self: start;
-    display: inline-flex;
-    align-items: baseline;
-    white-space: nowrap;
   }
   .money-currency {
     font-size: clamp(2.1rem, 5vw, 3.4rem);
+    font-family: 'Fraunces', serif;
     font-style: normal; /* per spec: no italic on $ */
     color: var(--accent);
-    margin-right: 0.18em;
+    margin-right: 0.4rem;
   }
   .money-whole {
     font-size: clamp(4.3rem, 12.5vw, 8.2rem);
     font-variant-numeric: tabular-nums;
-  }
-  .money-dot {
-    font-size: clamp(4.3rem, 12.5vw, 8.2rem);
-    color: var(--accent);
-    padding: 0 0.05em;
-    line-height: 0.9;
   }
   .money-decimal {
     font-size: clamp(2.1rem, 5vw, 3.4rem);
     color: var(--accent);
     font-variant-numeric: tabular-nums;
   }
+  .money-decimal::before { content: '.'; }
   .money-ms {
     font-size: clamp(1.2rem, 2.3vw, 1.7rem);
     color: var(--accent-deep);
     font-variant-numeric: tabular-nums;
     margin-left: 0.15rem;
+    align-self: baseline;
     opacity: 0.65;
   }
   .takehome-line {
@@ -1883,17 +1865,12 @@
       <div class="money-stage">
         <div class="money-label" data-i18n="page2.earned">Earned</div>
 
-        <!-- JITTER-FIXED: 3-column grid, decimal point locked at center column -->
+        <!-- Restored: organic jitter, currency + integer + decimal + ms in inline-flex -->
         <div class="money-display">
-          <div class="money-left">
-            <span class="money-currency" id="m-cur">$</span>
-            <span class="money-whole" id="m-whole">0</span>
-          </div>
-          <div class="money-dot">.</div>
-          <div class="money-right">
-            <span class="money-decimal" id="m-dec">00</span>
-            <span class="money-ms" id="m-ms">000</span>
-          </div>
+          <span class="money-currency" id="m-cur">$</span>
+          <span class="money-whole" id="m-whole">0</span>
+          <span class="money-decimal" id="m-dec">00</span>
+          <span class="money-ms" id="m-ms">000</span>
         </div>
 
         <div class="takehome-line">
@@ -2297,9 +2274,8 @@
         <p>Pulse Pro is a one-time payment of {PRICE} that unlocks advanced features for as long as the Pulse service remains available. We reserve the right to change the feature set, but the core advertised features (themes, tax mode, daily goals, pause, custom milestones, no ads) will remain available throughout the lifetime of the service.</p>
 
         <h3>Refunds</h3>
-        <p>Due to the nature of digital goods, all sales are generally final. However, we honor the following refund cases:</p>
+        <p>Due to the nature of digital goods, all sales are generally final. However, we honor the following refund case:</p>
         <ul>
-          <li><strong>Within 14 days of purchase</strong>: full refund, no questions asked. Email <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a> with your order ID.</li>
           <li><strong>Technical failure</strong>: if Pro features fail to activate or work as advertised and we cannot resolve it within 7 days of your report, a full refund is provided regardless of purchase date.</li>
         </ul>
 
@@ -2512,7 +2488,6 @@
         <h3>退款政策</h3>
         <p>数字商品原则上不退款。但以下情况我们一定退:</p>
         <ul>
-          <li><strong>购买后 14 天内</strong>:无理由全额退款。发邮件到 <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a> 附上订单号即可。</li>
           <li><strong>技术故障</strong>:若 Pro 功能无法激活或不能正常工作,且我们在收到反馈后 7 天内无法解决,无论购买时间长短均全额退款。</li>
         </ul>
 
