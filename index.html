@@ -3505,6 +3505,7 @@
   }
 
   /* =============== BIG money rain =============== */
+  // Total duration: 12 seconds (bills spawned over ~9s, last bill lands by ~12s)
   function moneyRain(amount) {
     const stage = $('#rainStage');
     const vignette = $('#rainVignette');
@@ -3515,7 +3516,9 @@
     bigToast.classList.add('show');
 
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const count = 40;
+      // 120 bills (3x denser than before), spawned across 9 seconds to sustain density
+      const count = 120;
+      const spawnWindow = 9; // seconds — bills appear continuously over this window
       for (let i = 0; i < count; i++) {
         const bill = document.createElement('div');
         bill.className = 'bill';
@@ -3527,7 +3530,8 @@
         bill.style.left = (Math.random() * 100) + '%';
         bill.style.top = (-100 - Math.random() * 200) + 'px';
         const duration = 2.4 + Math.random() * 1.8;
-        const delay = Math.random() * 1.3;
+        // Spread spawn delays evenly across the spawn window + small jitter for organic feel
+        const delay = (i / count) * spawnWindow + Math.random() * 0.4;
         bill.style.setProperty('--r0', (Math.random() * 60 - 30) + 'deg');
         bill.style.setProperty('--r1', (360 + Math.random() * 720) + 'deg');
         bill.style.animation = `fallDown ${duration}s linear ${delay}s forwards`;
@@ -3536,10 +3540,12 @@
       }
     }
 
+    // Keep bigToast + vignette visible for 18 seconds total
+    // (bills finish landing by ~12s, then heartbeat pulses for 6 more seconds)
     setTimeout(() => {
       vignette.classList.remove('show');
       bigToast.classList.remove('show');
-    }, 2800);
+    }, 18000);
   }
 
   /* =============== Clock out =============== */
