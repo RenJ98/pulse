@@ -2046,7 +2046,7 @@
       <span class="price-unit" data-i18n="pro.modal.priceUnit">one-time · lifetime</span>
     </div>
     <div class="price-launch js-launch-only" id="price-launch-banner">
-      <span class="price-launch-tag" data-i18n="pro.launch.tag">🔥 Founders Pricing</span>
+      <span class="price-launch-tag">🔥 Founders Pricing</span>
       <span class="price-launch-countdown" id="price-launch-countdown"></span>
     </div>
     <div class="features">
@@ -2817,75 +2817,248 @@
 
   /* =============== Pro flow =============== */
   // ============================================================
-  // LAUNCH PRICING STRATEGY
+  // PRICING ENGINE — Multi-Promo System
   // ============================================================
-  // Two-tier pricing: $2.99 founders price (first 7 days) → $4.99 regular.
-  // The UI auto-switches at LAUNCH_END_DATE.
-  // TODO before deploy:
-  //   1) Set LAUNCH_END_DATE to (your launch date + 7 days), ISO 8601 UTC.
-  //   2) Optionally adjust prices in PRICING.
+  // Pricing tiers:
+  //   • $9.99 ORIGINAL  — anchor (strikethrough), always shown
+  //   • $4.99 REGULAR   — baseline price, default
+  //   • $2.99 SALE      — normal promotions (90% of promo days)
+  //   • $1.99 DEEP_SALE — deep promotions (1-2× per year only)
+  //
+  // Promo precedence (highest wins):
+  //   1) DEEP_SALE holidays (11.11, Black Friday)        → $1.99
+  //   2) NORMAL_SALE holidays (Lunar NY, V-Day, etc.)    → $2.99
+  //   3) MONTH_END (last 3 days of month)                → $2.99
+  //   4) PERSONAL_LAUNCH (first 7 days after first visit)→ $2.99
+  //   5) Default                                          → $4.99
   // ------------------------------------------------------------
   const PRICING = {
-    LAUNCH:    '$2.99',   // Founders price (first 7 days)
-    REGULAR:   '$4.99',   // Regular price (after launch week)
-    ORIGINAL:  '$9.99',   // Anchor / strikethrough price (always displayed)
-    LAUNCH_END_DATE: '2026-06-01T00:00:00Z'  // ← UPDATE THIS to your launch date + 7 days
+    ORIGINAL:  '$9.99',
+    REGULAR:   '$4.99',
+    SALE:      '$2.99',
+    DEEP_SALE: '$1.99'
   };
 
+  // Holiday calendar — each entry: { name, key, level, startMonth, startDay, endMonth, endDay }
+  // level: 'deep' = $1.99, 'normal' = $2.99
+  // Dates are evaluated in user's local time (good enough for marketing UX)
+  const HOLIDAY_CALENDAR = [
+    // ===== DEEP SALES (only 2 per year) =====
+    {
+      key: '11_11', level: 'deep',
+      startMonth: 11, startDay: 10, endMonth: 11, endDay: 12,
+      labelEN: '🎉 11.11 Mega Sale', labelZH: '🎉 双 11 大促'
+    },
+    {
+      key: 'black_friday', level: 'deep',
+      // Black Friday floats: 4th Friday of November (Nov 23-29). We cover Nov 24-30 as a safe window.
+      startMonth: 11, startDay: 24, endMonth: 11, endDay: 30,
+      labelEN: '🦃 Black Friday', labelZH: '🦃 黑色星期五'
+    },
+    // ===== NORMAL SALES =====
+    {
+      key: 'cyber_monday', level: 'normal',
+      startMonth: 12, startDay: 1, endMonth: 12, endDay: 3,
+      labelEN: '💻 Cyber Monday', labelZH: '💻 网络星期一'
+    },
+    {
+      key: 'valentine', level: 'normal',
+      startMonth: 2, startDay: 13, endMonth: 2, endDay: 15,
+      labelEN: '❤️ Valentine\u2019s Day', labelZH: '❤️ 情人节'
+    },
+    {
+      key: 'double_12', level: 'normal',
+      startMonth: 12, startDay: 11, endMonth: 12, endDay: 13,
+      labelEN: '🛒 12.12 Sale', labelZH: '🛒 双 12 大促'
+    },
+    {
+      key: 'lunar_ny_2027', level: 'normal',
+      // Lunar New Year 2027: Feb 6. Cover Feb 4-8.
+      startMonth: 2, startDay: 4, endMonth: 2, endDay: 8,
+      labelEN: '🧧 Lunar New Year', labelZH: '🧧 春节'
+    },
+    {
+      key: 'new_year', level: 'normal',
+      startMonth: 12, startDay: 30, endMonth: 1, endDay: 2,
+      labelEN: '🎊 New Year', labelZH: '🎊 新年'
+    }
+  ];
+
+  // ----- Personal launch window (first 7 days from first visit) -----
+  const PERSONAL_WINDOW_DAYS = 7;
+  function getPersonalLaunchEnd() {
+    let firstSeen = LS.get('pulse_first_seen');
+    if (!firstSeen) {
+      firstSeen = Date.now();
+      LS.set('pulse_first_seen', firstSeen);
+    }
+    return firstSeen + PERSONAL_WINDOW_DAYS * 86400000;
+  }
+
+  // ----- Date helpers -----
+  function isInHolidayRange(now, h) {
+    const m = now.getMonth() + 1, d = now.getDate();
+    if (h.startMonth <= h.endMonth) {
+      // Normal range within same year
+      return (m > h.startMonth || (m === h.startMonth && d >= h.startDay))
+          && (m < h.endMonth   || (m === h.endMonth   && d <= h.endDay));
+    } else {
+      // Range spans year boundary (e.g. Dec 30 → Jan 2)
+      return (m > h.startMonth || (m === h.startMonth && d >= h.startDay))
+          || (m < h.endMonth   || (m === h.endMonth   && d <= h.endDay));
+    }
+  }
+
+  function daysInMonth(year, month1based) {
+    return new Date(year, month1based, 0).getDate();
+  }
+  function isMonthEnd(now) {
+    const d = now.getDate();
+    const last = daysInMonth(now.getFullYear(), now.getMonth() + 1);
+    return d >= last - 2; // last 3 days
+  }
+  function monthEndDeadline(now) {
+    const last = daysInMonth(now.getFullYear(), now.getMonth() + 1);
+    // 23:59:59.999 of the last day of month
+    return new Date(now.getFullYear(), now.getMonth(), last, 23, 59, 59, 999).getTime();
+  }
+  function holidayDeadline(now, h) {
+    // End of end-day, local time
+    let endYear = now.getFullYear();
+    // Handle year-wrap (Dec 30 → Jan 2): if we're in Dec, endMonth is Jan, so year++
+    if (h.startMonth > h.endMonth && (now.getMonth() + 1) >= h.startMonth) {
+      endYear = now.getFullYear() + 1;
+    }
+    return new Date(endYear, h.endMonth - 1, h.endDay, 23, 59, 59, 999).getTime();
+  }
+
+  // ----- Promo resolution (returns the active promo or null) -----
+  // Returns { price, level, source, label, deadline } or null for regular pricing
+  function resolvePromo() {
+    const now = new Date();
+
+    // 1) Deep-sale holidays (highest priority)
+    for (const h of HOLIDAY_CALENDAR) {
+      if (h.level === 'deep' && isInHolidayRange(now, h)) {
+        return {
+          price: PRICING.DEEP_SALE, level: 'deep', source: 'holiday',
+          label: h, deadline: holidayDeadline(now, h)
+        };
+      }
+    }
+    // 2) Normal-sale holidays
+    for (const h of HOLIDAY_CALENDAR) {
+      if (h.level === 'normal' && isInHolidayRange(now, h)) {
+        return {
+          price: PRICING.SALE, level: 'normal', source: 'holiday',
+          label: h, deadline: holidayDeadline(now, h)
+        };
+      }
+    }
+    // 3) Month-end (last 3 days)
+    if (isMonthEnd(now)) {
+      return {
+        price: PRICING.SALE, level: 'normal', source: 'month_end',
+        label: null, deadline: monthEndDeadline(now)
+      };
+    }
+    // 4) Personal launch (first 7 days)
+    const personalEnd = getPersonalLaunchEnd();
+    if (Date.now() < personalEnd) {
+      return {
+        price: PRICING.SALE, level: 'normal', source: 'personal',
+        label: null, deadline: personalEnd
+      };
+    }
+    // 5) No promo
+    return null;
+  }
+
+  // Current display price (used in {PRICE} template substitutions)
+  function currentPrice() {
+    const p = resolvePromo();
+    return p ? p.price : PRICING.REGULAR;
+  }
+  // Back-compat shim
+  function inLaunchWindow() {
+    return resolvePromo() !== null;
+  }
+
   // ============================================================
-  // LEMON SQUEEZY INTEGRATION (production-ready scaffold)
+  // CHECKOUT INTEGRATION (Lemon Squeezy / Creem / etc.)
   // ============================================================
-  // SETUP STEPS:
-  //   1) Sign up at https://www.lemonsqueezy.com
-  //   2) Create TWO product variants:
-  //      - "Pulse Pro · Founders" at $2.99
-  //      - "Pulse Pro · Regular" at $4.99
-  //   3) Get the Checkout URL for each
-  //   4) Replace both URLs below
-  //   5) For license-key validation, see /api/verify-license note below.
+  // SETUP STEPS (Creem):
+  //   1) Sign up at https://creem.io
+  //   2) Create THREE product variants (all One-time payment):
+  //      - "Pulse Pro · Sale"      at $2.99
+  //      - "Pulse Pro · Deep Sale" at $1.99
+  //      - "Pulse Pro · Regular"   at $4.99
+  //   3) Replace the three URLs below
+  //   4) For license-key validation, see /api/verify-license note below.
   // ------------------------------------------------------------
   const LEMON_CONFIG = {
-    // TODO: replace with your real Lemon Squeezy checkout URLs (two variants)
-    CHECKOUT_URL_LAUNCH:  'https://yourstore.lemonsqueezy.com/buy/LAUNCH-VARIANT-ID',
-    CHECKOUT_URL_REGULAR: 'https://yourstore.lemonsqueezy.com/buy/REGULAR-VARIANT-ID',
+    CHECKOUT_URL_SALE:      'https://yourstore.example.com/buy/SALE-VARIANT-ID',      // $2.99
+    CHECKOUT_URL_DEEP_SALE: 'https://yourstore.example.com/buy/DEEP-SALE-VARIANT-ID', // $1.99
+    CHECKOUT_URL_REGULAR:   'https://yourstore.example.com/buy/REGULAR-VARIANT-ID',   // $4.99
     // Active checkout URL (set at runtime by initLaunchPricing)
     CHECKOUT_URL: '',
+    // Back-compat aliases — kept so old refs don't break
+    get CHECKOUT_URL_LAUNCH() { return this.CHECKOUT_URL_SALE; },
     // Set to true ONLY after you have a backend verifying license keys.
     USE_LICENSE_VERIFICATION: false
   };
 
-  // Determine if we are in the launch window
-  function inLaunchWindow() {
-    return Date.now() < new Date(PRICING.LAUNCH_END_DATE).getTime();
-  }
-  // Current display price (used in {PRICE} template substitutions)
-  function currentPrice() {
-    return inLaunchWindow() ? PRICING.LAUNCH : PRICING.REGULAR;
+  // ----- Active checkout URL based on current promo -----
+  function activeCheckoutUrl() {
+    const p = resolvePromo();
+    if (!p) return LEMON_CONFIG.CHECKOUT_URL_REGULAR;
+    if (p.level === 'deep') return LEMON_CONFIG.CHECKOUT_URL_DEEP_SALE;
+    return LEMON_CONFIG.CHECKOUT_URL_SALE;
   }
 
-  // Initialize launch UI on load + on language change. Idempotent.
+  // ----- Localized promo banner text -----
+  function promoLabel(promo, lang) {
+    const isZh = (lang === 'zh');
+    if (!promo) return '';
+    if (promo.source === 'holiday') {
+      return isZh ? promo.label.labelZH : promo.label.labelEN;
+    }
+    if (promo.source === 'month_end') {
+      return isZh ? '🌙 月末特惠' : '🌙 Month-End Sale';
+    }
+    if (promo.source === 'personal') {
+      return isZh ? '🔥 新用户首发价' : '🔥 Founders Pricing';
+    }
+    return '';
+  }
+
+  // Initialize promo UI on load + on language change. Idempotent.
   function initLaunchPricing() {
-    const inLaunch = inLaunchWindow();
+    const promo = resolvePromo();
+    const inPromo = !!promo;
     // Pick the right checkout URL
-    LEMON_CONFIG.CHECKOUT_URL = inLaunch
-      ? LEMON_CONFIG.CHECKOUT_URL_LAUNCH
-      : LEMON_CONFIG.CHECKOUT_URL_REGULAR;
+    LEMON_CONFIG.CHECKOUT_URL = activeCheckoutUrl();
     // Update displayed price everywhere
     document.querySelectorAll('.js-price-current').forEach(el => {
       el.textContent = currentPrice();
     });
-    // Show/hide launch-only elements (anchor price + countdown banner)
+    // Show/hide promo-only elements (anchor price + countdown banner)
     document.querySelectorAll('.js-launch-only').forEach(el => {
-      el.style.display = inLaunch ? '' : 'none';
+      el.style.display = inPromo ? '' : 'none';
     });
+    // Update promo tag text
+    const tagEl = document.querySelector('.price-launch-tag');
+    if (tagEl && inPromo) {
+      tagEl.textContent = promoLabel(promo, state && state.lang);
+    }
     // Countdown ticker
     const cdEl = document.getElementById('price-launch-countdown');
-    if (inLaunch && cdEl) {
-      const end = new Date(PRICING.LAUNCH_END_DATE).getTime();
+    if (inPromo && cdEl) {
+      const end = promo.deadline;
       const renderCd = () => {
         const diff = end - Date.now();
         if (diff <= 0) {
-          // Launch window just ended — re-run to switch to regular pricing
+          // Promo just ended — re-resolve (next promo may start, or regular kicks in)
           initLaunchPricing();
           renderI18n();
           return;
