@@ -85,19 +85,20 @@
     --border: rgba(245, 193, 75, 0.2);
     --border-strong: rgba(245, 193, 75, 0.5);
   }
+  /* Bear Green — K-line falling color (teal-leaning, classic Chinese stock chart green) */
   .theme-emerald {
-    --bg: #06120c;
-    --bg-elev: #0d1d15;
-    --bg-card: #11261b;
-    --accent: #4ade80;
-    --accent-bright: #86efac;
-    --accent-deep: #16a34a;
-    --accent-glow: rgba(74, 222, 128, 0.4);
-    --text: #d1fae5;
-    --text-dim: #6b8478;
-    --text-soft: #a7d4ba;
-    --border: rgba(74, 222, 128, 0.2);
-    --border-strong: rgba(74, 222, 128, 0.5);
+    --bg: #04130f;
+    --bg-elev: #0a1d18;
+    --bg-card: #0e261f;
+    --accent: #14b8a6;
+    --accent-bright: #5eead4;
+    --accent-deep: #0d9488;
+    --accent-glow: rgba(20, 184, 166, 0.45);
+    --text: #ccfbf1;
+    --text-dim: #6b8782;
+    --text-soft: #99d4c8;
+    --border: rgba(20, 184, 166, 0.22);
+    --border-strong: rgba(20, 184, 166, 0.55);
   }
   .theme-sapphire {
     --bg: #060914;
@@ -113,33 +114,36 @@
     --border: rgba(96, 165, 250, 0.2);
     --border-strong: rgba(96, 165, 250, 0.5);
   }
+  /* Bull Red — K-line rising color (classic Chinese stock chart red) */
   .theme-crimson {
-    --bg: #110608;
-    --bg-elev: #1d0c10;
-    --bg-card: #261015;
-    --accent: #f87171;
-    --accent-bright: #fca5a5;
-    --accent-deep: #dc2626;
-    --accent-glow: rgba(248, 113, 113, 0.4);
+    --bg: #100507;
+    --bg-elev: #1c0a0d;
+    --bg-card: #240e12;
+    --accent: #ef4444;
+    --accent-bright: #f87171;
+    --accent-deep: #b91c1c;
+    --accent-glow: rgba(239, 68, 68, 0.45);
     --text: #fee2e2;
-    --text-dim: #8a6a6a;
-    --text-soft: #d9a8a8;
-    --border: rgba(248, 113, 113, 0.2);
-    --border-strong: rgba(248, 113, 113, 0.5);
+    --text-dim: #8e6868;
+    --text-soft: #e8a8a8;
+    --border: rgba(239, 68, 68, 0.22);
+    --border-strong: rgba(239, 68, 68, 0.55);
   }
+  /* Amethyst — replaces Platinum. Deep violet palette. */
+  /* Note: CSS class kept as .theme-platinum for backward compat with saved localStorage */
   .theme-platinum {
-    --bg: #0c0c0e;
-    --bg-elev: #16161a;
-    --bg-card: #1d1d22;
-    --accent: #e5e7eb;
-    --accent-bright: #f9fafb;
-    --accent-deep: #9ca3af;
-    --accent-glow: rgba(229, 231, 235, 0.35);
-    --text: #f3f4f6;
-    --text-dim: #6b7280;
-    --text-soft: #c1c5cc;
-    --border: rgba(229, 231, 235, 0.18);
-    --border-strong: rgba(229, 231, 235, 0.45);
+    --bg: #0b0813;
+    --bg-elev: #170d22;
+    --bg-card: #1d122c;
+    --accent: #a855f7;
+    --accent-bright: #c084fc;
+    --accent-deep: #7e22ce;
+    --accent-glow: rgba(168, 85, 247, 0.45);
+    --text: #f3e8ff;
+    --text-dim: #7b6e8a;
+    --text-soft: #c9b4dd;
+    --border: rgba(168, 85, 247, 0.22);
+    --border-strong: rgba(168, 85, 247, 0.55);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -637,10 +641,10 @@
     transform: scale(1.1);
   }
   .swatch.gold { background: #f5c14b; }
-  .swatch.emerald { background: #4ade80; }
+  .swatch.emerald { background: #14b8a6; }
   .swatch.sapphire { background: #60a5fa; }
-  .swatch.crimson { background: #f87171; }
-  .swatch.platinum { background: #e5e7eb; }
+  .swatch.crimson { background: #ef4444; }
+  .swatch.platinum { background: #a855f7; }
 
   /* ========== BUTTONS ========== */
   .btn-primary {
@@ -1479,6 +1483,83 @@
   .price-launch-countdown {
     color: var(--text-dim);
   }
+  /* ===== Free vs Pro comparison table ===== */
+  .compare-wrap {
+    margin-bottom: 1.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .compare-table thead th {
+    background: rgba(0,0,0,0.25);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.75rem 0.85rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table thead th.compare-free-col,
+  .compare-table thead th.compare-pro-col {
+    text-align: center;
+    width: 70px;
+  }
+  .compare-table thead th.compare-pro-col {
+    color: var(--accent-bright);
+    background: rgba(0,0,0,0.4);
+  }
+  .compare-table tbody tr {
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table tbody tr:last-child {
+    border-bottom: none;
+  }
+  .compare-table tbody tr:hover {
+    background: rgba(255,255,255,0.02);
+  }
+  .compare-table td {
+    padding: 0.7rem 0.85rem;
+    color: var(--text);
+  }
+  .compare-table td.cmp-feat {
+    font-weight: 500;
+    font-size: 0.88rem;
+    color: var(--text-soft);
+  }
+  .compare-table td.cmp-yes,
+  .compare-table td.cmp-no,
+  .compare-table td.cmp-val {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    width: 70px;
+    white-space: nowrap;
+  }
+  .compare-table td.cmp-yes { color: var(--text-dim); font-weight: 700; }
+  .compare-table td.cmp-no  { color: var(--text-dim); opacity: 0.45; }
+  .compare-table td.cmp-val { color: var(--text-dim); font-size: 0.78rem; }
+  .compare-table td.pro-cell {
+    background: rgba(0,0,0,0.25);
+    color: var(--accent-bright);
+  }
+  .compare-table td.cmp-yes.pro-cell {
+    color: var(--accent-bright);
+    text-shadow: 0 0 12px var(--accent-glow);
+  }
+  .compare-table td.cmp-val.pro-cell {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.78rem;
+  }
+
+  /* Legacy ✓ feature list (no longer used, kept in case modal layouts reference it) */
   .features {
     display: flex;
     flex-direction: column;
@@ -1781,7 +1862,7 @@
               <div class="swatch emerald" data-theme="theme-emerald" title="Emerald"></div>
               <div class="swatch sapphire" data-theme="theme-sapphire" title="Sapphire"></div>
               <div class="swatch crimson" data-theme="theme-crimson" title="Crimson"></div>
-              <div class="swatch platinum" data-theme="theme-platinum" title="Platinum"></div>
+              <div class="swatch platinum" data-theme="theme-platinum" title="Amethyst"></div>
             </div>
           </div>
           <div class="pro-control">
@@ -2049,13 +2130,28 @@
       <span class="price-launch-tag">🔥 Founders Pricing</span>
       <span class="price-launch-countdown" id="price-launch-countdown"></span>
     </div>
-    <div class="features">
-      <div class="feature"><div class="feature-icon">✓</div><div class="feature-text"><div class="feature-title" data-i18n="pro.f1.t"></div><div class="feature-desc" data-i18n="pro.f1.d"></div></div></div>
-      <div class="feature"><div class="feature-icon">✓</div><div class="feature-text"><div class="feature-title" data-i18n="pro.f2.t"></div><div class="feature-desc" data-i18n="pro.f2.d"></div></div></div>
-      <div class="feature"><div class="feature-icon">✓</div><div class="feature-text"><div class="feature-title" data-i18n="pro.f3.t"></div><div class="feature-desc" data-i18n="pro.f3.d"></div></div></div>
-      <div class="feature"><div class="feature-icon">✓</div><div class="feature-text"><div class="feature-title" data-i18n="pro.f4.t"></div><div class="feature-desc" data-i18n="pro.f4.d"></div></div></div>
-      <div class="feature"><div class="feature-icon">✓</div><div class="feature-text"><div class="feature-title" data-i18n="pro.f5.t"></div><div class="feature-desc" data-i18n="pro.f5.d"></div></div></div>
-      <div class="feature"><div class="feature-icon">✓</div><div class="feature-text"><div class="feature-title" data-i18n="pro.f6.t"></div><div class="feature-desc" data-i18n="pro.f6.d"></div></div></div>
+    <div class="compare-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="compare-feature-col" data-i18n="cmp.head.feature">Feature</th>
+            <th class="compare-free-col" data-i18n="cmp.head.free">Free</th>
+            <th class="compare-pro-col" data-i18n="cmp.head.pro">Pro</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="cmp-feat" data-i18n="cmp.r1">Live earnings ticker</td><td class="cmp-yes">✓</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r2">Daily report on clock-out</td><td class="cmp-yes">✓</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r3">English / 中文</td><td class="cmp-yes">✓</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r4">Visual themes</td><td class="cmp-val" data-i18n="cmp.r4.free">Gold only</td><td class="cmp-val pro-cell" data-i18n="cmp.r4.pro">5 themes</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r5">Tax mode (after-tax view)</td><td class="cmp-no">—</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r6">Daily goal tracker</td><td class="cmp-no">—</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r7">Pause &amp; resume</td><td class="cmp-no">—</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r8">Custom milestones</td><td class="cmp-no">—</td><td class="cmp-yes pro-cell">✓</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r10">Money rain celebration</td><td class="cmp-val" data-i18n="cmp.r10.free">2× / day</td><td class="cmp-val pro-cell" data-i18n="cmp.r10.pro">Unlimited</td></tr>
+          <tr><td class="cmp-feat" data-i18n="cmp.r9">Advertising</td><td class="cmp-val" data-i18n="cmp.r9.free">Shown</td><td class="cmp-val pro-cell" data-i18n="cmp.r9.pro">Removed</td></tr>
+        </tbody>
+      </table>
     </div>
     <div class="modal-actions">
       <button class="btn-primary" id="btn-upgrade">
@@ -2166,7 +2262,7 @@
       'pro.f1.t': 'No ads, ever',
       'pro.f1.d': 'Pure focus. Just you and the ticker.',
       'pro.f2.t': '5 themes',
-      'pro.f2.d': 'Gold, Emerald, Sapphire, Crimson, Platinum.',
+      'pro.f2.d': 'Gold, Emerald, Sapphire, Crimson, Amethyst.',
       'pro.f3.t': 'Tax mode',
       'pro.f3.d': 'Set your bracket, see real take-home in real time.',
       'pro.f4.t': 'Daily goal',
@@ -2175,6 +2271,26 @@
       'pro.f5.d': 'Lunch, restroom, life. The clock waits for you.',
       'pro.f6.t': 'Custom milestones',
       'pro.f6.d': 'Celebrate at the exact amounts that matter to you.',
+      // Comparison table
+      'cmp.head.feature': 'Feature',
+      'cmp.head.free':    'Free',
+      'cmp.head.pro':     'Pro',
+      'cmp.r1':           'Live earnings ticker',
+      'cmp.r2':           'Daily report on clock-out',
+      'cmp.r3':           'English / 中文',
+      'cmp.r4':           'Visual themes',
+      'cmp.r4.free':      'Gold only',
+      'cmp.r4.pro':       '5 themes',
+      'cmp.r5':           'Tax mode (after-tax view)',
+      'cmp.r6':           'Daily goal tracker',
+      'cmp.r7':           'Pause & resume',
+      'cmp.r8':           'Custom milestones',
+      'cmp.r9':           'Advertising',
+      'cmp.r9.free':      'Shown',
+      'cmp.r9.pro':       'Removed',
+      'cmp.r10':          'Money rain celebration',
+      'cmp.r10.free':     '2× / day',
+      'cmp.r10.pro':      'Unlimited',
       'pro.cta': 'Upgrade · {PRICE}',
       'pro.maybeLater': 'Maybe later',
       'pro.activated': 'Pro ✓',
@@ -2382,7 +2498,7 @@
       'pro.f1.t': '永久无广告',
       'pro.f1.d': '纯粹的专注。只有你和你的钱。',
       'pro.f2.t': '5 款主题',
-      'pro.f2.d': '黄金、翡翠、蓝宝石、朱砂、铂金。',
+      'pro.f2.d': '黄金、翡翠、蓝宝石、朱砂、紫水晶。',
       'pro.f3.t': '税后模式',
       'pro.f3.d': '设置税率,实时看到真正的到手收入。',
       'pro.f4.t': '每日目标',
@@ -2391,6 +2507,26 @@
       'pro.f5.d': '午饭、上厕所、生活——计时会等你。',
       'pro.f6.t': '自定义里程碑',
       'pro.f6.d': '在你真正在意的金额触发庆祝。',
+      // 功能对比表
+      'cmp.head.feature': '功能',
+      'cmp.head.free':    '免费版',
+      'cmp.head.pro':     'Pro 版',
+      'cmp.r1':           '实时计薪',
+      'cmp.r2':           '下班战报',
+      'cmp.r3':           '中英双语',
+      'cmp.r4':           '主题样式',
+      'cmp.r4.free':      '仅金色',
+      'cmp.r4.pro':       '5 款主题',
+      'cmp.r5':           '税后模式(看真实到手)',
+      'cmp.r6':           '每日目标进度',
+      'cmp.r7':           '暂停 / 继续',
+      'cmp.r8':           '自定义里程碑',
+      'cmp.r9':           '广告',
+      'cmp.r9.free':      '会显示',
+      'cmp.r9.pro':       '不显示',
+      'cmp.r10':          '撒钱时刻',
+      'cmp.r10.free':     '每日 2 次',
+      'cmp.r10.pro':      '无限触发',
       'pro.cta': '升级 · {PRICE}',
       'pro.maybeLater': '下次再说',
       'pro.activated': 'Pro ✓',
@@ -2549,6 +2685,7 @@
     get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e) { return d; } },
     set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
   };
+
 
   const state = {
     lang: LS.get('pulse_lang', 'en'),
