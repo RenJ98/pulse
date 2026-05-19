@@ -3623,12 +3623,39 @@
   }
 
   /* =============== BIG money rain =============== */
-  // Total duration: 12 seconds (bills spawned over ~9s, last bill lands by ~12s)
+  // Total duration: 18 seconds total (bills spawned over ~9s, last bill lands by ~12s,
+  // then 6 more seconds of bigToast dwell).
+  //
+  // VISIBILITY HANDLING: if the user switches away during a rain, abort the entire round.
+  // Otherwise CSS animations pause while setTimeout keeps running — when the user
+  // returns, bills still visually float on screen but the round is logically over.
   function moneyRain(amount) {
+    // If another rain is already in flight, cancel it cleanly first
+    if (window.__rainAbort) {
+      try { window.__rainAbort(); } catch (e) {}
+    }
+
     const stage = $('#rainStage');
     const vignette = $('#rainVignette');
     const bigToast = $('#bigToast');
     $('#bigToastAmount').textContent = fmtCur(amount);
+
+    // Abort flag + cleanup function for visibility change
+    let aborted = false;
+    function abortRain() {
+      if (aborted) return;
+      aborted = true;
+      vignette.classList.remove('show');
+      bigToast.classList.remove('show');
+      stage.querySelectorAll('.bill').forEach(b => b.remove());
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (window.__rainAbort === abortRain) window.__rainAbort = null;
+    }
+    function onVisibilityChange() {
+      if (document.hidden) abortRain();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.__rainAbort = abortRain;
 
     vignette.classList.add('show');
     bigToast.classList.add('show');
@@ -3661,8 +3688,11 @@
     // Keep bigToast + vignette visible for 18 seconds total
     // (bills finish landing by ~12s, then heartbeat pulses for 6 more seconds)
     setTimeout(() => {
+      if (aborted) return;
       vignette.classList.remove('show');
       bigToast.classList.remove('show');
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (window.__rainAbort === abortRain) window.__rainAbort = null;
     }, 18000);
   }
 
