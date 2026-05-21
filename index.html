@@ -3642,9 +3642,14 @@
 
     // Abort flag + cleanup function for visibility change
     let aborted = false;
-    function abortRain() {
+    function abortRain(reason) {
       if (aborted) return;
       aborted = true;
+      // If aborted because tab became hidden, remember it so we can show
+      // a "rain canceled" toast on return.
+      if (reason === 'hidden') {
+        window.__rainCanceledByHide = { at: Date.now(), caughtTotal: 0, catchCount: 0 };
+      }
       vignette.classList.remove('show');
       bigToast.classList.remove('show');
       stage.querySelectorAll('.bill').forEach(b => b.remove());
@@ -3652,7 +3657,7 @@
       if (window.__rainAbort === abortRain) window.__rainAbort = null;
     }
     function onVisibilityChange() {
-      if (document.hidden) abortRain();
+      if (document.hidden) abortRain('hidden');
     }
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.__rainAbort = abortRain;
@@ -3784,6 +3789,31 @@
     $('#in-goal').value = state.dailyGoal;
     $('#in-milestone').value = state.customMilestone;
   }
+
+  /* =============== Global visibility listener =============== */
+  // When the user returns to the tab, check if a money rain round was canceled
+  // because they switched away. If so, show a brief toast so they understand
+  // what happened (otherwise the rain disappearing feels like a bug).
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    const flag = window.__rainCanceledByHide;
+    if (!flag) return;
+    if (Date.now() - flag.at > 60000) {
+      window.__rainCanceledByHide = null;
+      return;
+    }
+    const isZh = (state && state.lang === 'zh');
+    const toastEl = $('#toast');
+    const toastText = $('#toast-text');
+    if (!toastEl || !toastText) return;
+    const msg = isZh
+      ? '撒钱已取消（切换离开）'
+      : 'Money rain canceled (you switched away)';
+    toastText.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 3500);
+    window.__rainCanceledByHide = null;
+  });
 
   /* =============== Init =============== */
   initFromStorage();
