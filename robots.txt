@@ -1,5 +1,5 @@
 # robots.txt for Pulse · Live Salary Calculator
-# https://pulse.example.com/
+# https://arknove.com/
 
 # Allow all crawlers full access
 User-agent: *
@@ -26,4 +26,4 @@ User-agent: ClaudeBot
 Disallow: /
 
 # Sitemap
-Sitemap: https://pulse.example.com/sitemap.xml
+Sitemap: https://arknove.com/sitemap.xml

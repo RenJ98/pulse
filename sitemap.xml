@@ -3,13 +3,13 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
   <url>
-    <loc>https://pulse.example.com/</loc>
-    <lastmod>2026-05-17</lastmod>
+    <loc>https://arknove.com/</loc>
+    <lastmod>2026-05-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://pulse.example.com/" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://pulse.example.com/?lang=zh" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://pulse.example.com/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://arknove.com/" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://arknove.com/?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://arknove.com/" />
   </url>
 
 </urlset>
