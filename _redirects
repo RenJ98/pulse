@@ -1,5 +1,0 @@
-# Redirect old Cloudflare Pages temporary domain to the canonical arknove.com domain
-# Format: source destination status_code
-# The :splat token captures everything after the wildcard and appends it to the target.
-
-https://pulse-3t6.pages.dev/* https://arknove.com/:splat 301
