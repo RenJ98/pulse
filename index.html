@@ -2086,10 +2086,11 @@
   <footer class="footer">
     <span><span class="dot"></span><span data-i18n="footer.tagline">EST. 2026 · TIME IS MONEY</span></span>
     <span class="footer-links">
-      <a data-modal="about" data-i18n="footer.about">About</a>
-      <a data-modal="privacy" data-i18n="footer.privacy">Privacy</a>
-      <a data-modal="terms" data-i18n="footer.terms">Terms</a>
-      <a data-modal="contact" data-i18n="footer.contact">Contact</a>
+      <a href="/about.html" data-i18n="footer.about">About</a>
+      <a href="/privacy.html" data-i18n="footer.privacy">Privacy</a>
+      <a href="/terms.html" data-i18n="footer.terms">Terms</a>
+      <a href="/contact.html" data-i18n="footer.contact">Contact</a>
+      <a href="mailto:support@arknove.com">support@arknove.com</a>
       <span id="status">READY</span>
     </span>
   </footer>
@@ -2384,7 +2385,7 @@
         <p>We may update this policy from time to time. The "Last updated" date at the top will change accordingly.</p>
 
         <h3>Contact</h3>
-        <p>Questions about this policy? Email <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a>.</p>
+        <p>Questions about this policy? Email <a href="mailto:support@arknove.com">support@arknove.com</a>.</p>
       `,
 
       // Terms modal
@@ -2425,7 +2426,7 @@
         <p>Pulse is provided "as is" without warranties of any kind. We are not liable for any decisions made based on calculations from this site.</p>
 
         <h3>Contact</h3>
-        <p>Questions? Email <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a>.</p>
+        <p>Questions? Email <a href="mailto:support@arknove.com">support@arknove.com</a>.</p>
       `,
 
       // About modal
@@ -2440,7 +2441,7 @@
         <h3>Pulse Pro</h3>
         <p>The core product is free. Pulse Pro is a {PRICE} one-time upgrade for advanced features (themes, tax mode, daily goals, pause, custom milestones, no ads). One payment, lifetime access.</p>
         <h3>Contact</h3>
-        <p>Feedback, bug reports, ideas — email <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a>.</p>
+        <p>Feedback, bug reports, ideas — email <a href="mailto:support@arknove.com">support@arknove.com</a>.</p>
       `,
 
       // Contact modal
@@ -2449,7 +2450,7 @@
       'contact.body': `
         <p>The best way to reach us is by email.</p>
         <h3>Email</h3>
-        <p><a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a></p>
+        <p><a href="mailto:support@arknove.com">support@arknove.com</a></p>
         <p>We read every message but cannot promise a personal reply to all of them. Bug reports, feedback, and feature requests are especially welcome.</p>
         <h3>Response time</h3>
         <p>Typically within a few business days. Please include screenshots if you are reporting a bug.</p>
@@ -2618,7 +2619,7 @@
         <p>我们可能不时更新本政策,顶部「最后更新」日期会同步变更。</p>
 
         <h3>联系</h3>
-        <p>有疑问? <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a></p>
+        <p>有疑问? <a href="mailto:support@arknove.com">support@arknove.com</a></p>
       `,
 
       'terms.label': '法律声明',
@@ -2658,7 +2659,7 @@
         <p>Pulse 按「现状」提供,不附带任何明示或暗示的保证。我们不对基于本站计算结果做出的任何决策负责。</p>
 
         <h3>联系</h3>
-        <p>有疑问? <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a></p>
+        <p>有疑问? <a href="mailto:support@arknove.com">support@arknove.com</a></p>
       `,
 
       'about.label': '关于',
@@ -2672,7 +2673,7 @@
         <h3>Pulse Pro</h3>
         <p>核心免费,Pulse Pro 是 {PRICE} 一次性升级,解锁主题、税后模式、每日目标、暂停、自定义里程碑、无广告。一次付款,永久使用。</p>
         <h3>联系</h3>
-        <p>反馈、bug、建议都欢迎: <a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a></p>
+        <p>反馈、bug、建议都欢迎: <a href="mailto:support@arknove.com">support@arknove.com</a></p>
       `,
 
       'contact.label': '联系',
@@ -2680,7 +2681,7 @@
       'contact.body': `
         <p>最好的联系方式是邮件。</p>
         <h3>邮箱</h3>
-        <p><a href="mailto:renj10200@gmail.com">renj10200@gmail.com</a></p>
+        <p><a href="mailto:support@arknove.com">support@arknove.com</a></p>
         <p>每一封邮件我们都会读,但无法保证全部回复。Bug 反馈、产品建议、新功能想法,我们尤其欢迎。</p>
         <h3>回复时间</h3>
         <p>通常几个工作日内。Bug 反馈请附截图。</p>
@@ -3357,7 +3358,7 @@
         activatePro(data.license_key);
         closeAllModals();
       } else {
-        alert('License verification failed. Please email renj10200@gmail.com.');
+        alert('License verification failed. Please email support@arknove.com.');
       }
     } catch (err) {
       console.error('License verify error:', err);
