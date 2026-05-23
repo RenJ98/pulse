@@ -3211,26 +3211,36 @@
   }
 
   // ============================================================
-  // CHECKOUT INTEGRATION (Lemon Squeezy / Creem / etc.)
+  // CHECKOUT INTEGRATION (Creem.io)
   // ============================================================
-  // SETUP STEPS (Creem):
-  //   1) Sign up at https://creem.io
-  //   2) Create THREE product variants (all One-time payment):
-  //      - "Pulse Pro · Sale"      at $2.99
-  //      - "Pulse Pro · Deep Sale" at $1.99
-  //      - "Pulse Pro · Regular"   at $4.99
-  //   3) Replace the three URLs below
-  //   4) For license-key validation, see /api/verify-license note below.
+  // Current setup: SINGLE Pulse Pro product at $4.99 one-time payment.
+  // All three "tier" URLs point to the same Creem product for now — the
+  // promo system shows the discounted price in the UI, but checkout always
+  // collects the base $4.99 (we'll add real discount codes later via Creem).
+  //
+  // TO SWITCH TO LIVE MODE after KYC approval:
+  //   1. Verify KYC + payout account is approved in Creem dashboard
+  //   2. Replace '/test/' with '/payment' in the three URLs below
+  //      (i.e. https://www.creem.io/test/payment/prod_XXX → https://www.creem.io/payment/prod_XXX)
+  //   3. Deploy. That's it.
+  //
+  // Product ID: prod_EiKuOYEhSerjp4nOcJEQb (Pulse Pro · $4.99 · Arknove store)
   // ------------------------------------------------------------
+  const CREEM_TEST_MODE = true; // ← flip to false after KYC is approved
+  const CREEM_BASE = CREEM_TEST_MODE
+    ? 'https://www.creem.io/test/payment/'
+    : 'https://www.creem.io/payment/';
+  const CREEM_PRODUCT_ID = 'prod_EiKuOYEhSerjp4nOcJEQb';
+  const CREEM_CHECKOUT_URL = CREEM_BASE + CREEM_PRODUCT_ID;
+
+  // LEMON_CONFIG kept as alias so existing references (activeCheckoutUrl etc.)
+  // don't break. All three tiers point at the same Creem product for now.
   const LEMON_CONFIG = {
-    CHECKOUT_URL_SALE:      'https://yourstore.example.com/buy/SALE-VARIANT-ID',      // $2.99
-    CHECKOUT_URL_DEEP_SALE: 'https://yourstore.example.com/buy/DEEP-SALE-VARIANT-ID', // $1.99
-    CHECKOUT_URL_REGULAR:   'https://yourstore.example.com/buy/REGULAR-VARIANT-ID',   // $4.99
-    // Active checkout URL (set at runtime by initLaunchPricing)
-    CHECKOUT_URL: '',
-    // Back-compat aliases — kept so old refs don't break
+    CHECKOUT_URL_SALE:      CREEM_CHECKOUT_URL, // $2.99 promo (shown in UI, billed $4.99)
+    CHECKOUT_URL_DEEP_SALE: CREEM_CHECKOUT_URL, // $1.99 promo (shown in UI, billed $4.99)
+    CHECKOUT_URL_REGULAR:   CREEM_CHECKOUT_URL, // $4.99 regular
+    CHECKOUT_URL: CREEM_CHECKOUT_URL,
     get CHECKOUT_URL_LAUNCH() { return this.CHECKOUT_URL_SALE; },
-    // Set to true ONLY after you have a backend verifying license keys.
     USE_LICENSE_VERIFICATION: false
   };
 
@@ -3314,15 +3324,15 @@
   });
 
   $('#btn-upgrade').addEventListener('click', () => {
-    // Open Lemon Squeezy checkout in overlay (their JS handles popup + return)
-    if (window.LemonSqueezy && window.createLemonSqueezy) {
-      // The hosted checkout will redirect back with ?order_id=... in URL
-      window.LemonSqueezy.Url.Open(LEMON_CONFIG.CHECKOUT_URL);
-    } else {
-      // Fallback: open in new tab if SDK not loaded
-      window.open(LEMON_CONFIG.CHECKOUT_URL, '_blank');
-    }
-    // Note: actual activation happens after payment-success callback below.
+    // Creem-hosted checkout. After payment, Creem redirects back to
+    // https://arknove.com/?upgrade=success (configured in Creem dashboard).
+    // The ?upgrade=success listener (initFromStorage area) activates Pro.
+    //
+    // We use full-page redirect (not popup) because:
+    //   - No SDK needed (Creem's hosted page handles all card logic)
+    //   - Works on mobile reliably (popups often blocked)
+    //   - Simpler return-URL flow
+    window.location.href = LEMON_CONFIG.CHECKOUT_URL;
   });
 
   // Lemon Squeezy fires window.postMessage events on success.
@@ -3811,12 +3821,46 @@
     window.__rainCanceledByHide = null;
   });
 
+  /* =============== Creem checkout return handler =============== */
+  // When Creem redirects user back after successful payment, the URL contains
+  // ?upgrade=success. We detect it on page load, activate Pro, show a toast,
+  // and clean the URL so reloading doesn't re-trigger the flow.
+  //
+  // Note: this is "trust the redirect" mode (no backend signature verification).
+  // For a $4.99 product, the small fraud risk is acceptable.
+  // To add backend verification, see the verifyLicenseWithBackend stub below.
+  function maybeActivateProFromReturnUrl() {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('upgrade') !== 'success') return;
+    // Activate Pro
+    activatePro();
+    closeAllModals();
+    // Show success toast (delayed slightly so i18n + state are ready)
+    setTimeout(() => {
+      const isZh = (state && state.lang === 'zh');
+      const toastEl = $('#toast');
+      const toastText = $('#toast-text');
+      if (toastEl && toastText) {
+        toastText.textContent = isZh
+          ? '🎉 Pulse Pro 已激活 · 感谢您的支持!'
+          : '🎉 Pulse Pro activated · Thank you for your support!';
+        toastEl.classList.add('show');
+        setTimeout(() => toastEl.classList.remove('show'), 5000);
+      }
+    }, 300);
+    // Clean the URL so reload doesn't re-trigger
+    url.searchParams.delete('upgrade');
+    const cleanUrl = url.pathname + (url.search || '') + url.hash;
+    window.history.replaceState({}, '', cleanUrl);
+  }
+
   /* =============== Init =============== */
   initFromStorage();
   renderI18n();
   renderCurrency();
   updateDateTime();
   maybeShowCookieBanner();
+  maybeActivateProFromReturnUrl();
 
 })();
 </script>
