@@ -1308,6 +1308,87 @@
     transition: opacity 0.4s ease;
   }
   .rain-vignette.show { opacity: 1; }
+
+  /* ===== Catch interaction (V2 — clickable bills) ===== */
+  /* During rain: lock all non-rain UI from being misclicked + global pointer cursor.
+     Only the bills themselves stay interactive. */
+  body.rain-active,
+  body.rain-active * {
+    cursor: pointer !important;
+  }
+  body.rain-active .header,
+  body.rain-active .main,
+  body.rain-active .footer,
+  body.rain-active .modal-overlay {
+    pointer-events: none !important;
+  }
+
+  .bill.catchable {
+    pointer-events: auto;
+    cursor: pointer;
+    transition: filter 0.1s, transform 0.1s;
+  }
+  /* Invisible expanded click area — does NOT change visible bill size */
+  .bill.catchable::before {
+    content: '';
+    position: absolute;
+    inset: -32px;
+    /* fully transparent click pad — 124×92 area for a base 60×28 bill */
+  }
+  .bill.catchable:hover {
+    filter: brightness(1.25);
+  }
+  .bill.caught {
+    animation: billCaught 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) forwards !important;
+    pointer-events: none;
+  }
+  @keyframes billCaught {
+    0%   { transform: scale(1) rotate(var(--rNow, 0deg)); opacity: 1; }
+    40%  { transform: scale(1.6) rotate(var(--rNow, 0deg)); opacity: 1; }
+    100% { transform: scale(0.2) rotate(var(--rNow, 0deg)); opacity: 0; }
+  }
+  .bill-pop {
+    position: absolute;
+    pointer-events: none;
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 1.4rem;
+    color: var(--accent-bright);
+    text-shadow: 0 0 18px var(--accent-glow), 0 2px 6px rgba(0,0,0,0.6);
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    z-index: 3;
+    animation: billPop 1s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  }
+  @keyframes billPop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+    15%  { opacity: 1; transform: translate(-50%, -80%) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -180%) scale(1); }
+  }
+  /* /Catch interaction ===== */
+
+  /* Slam entry: replaces the gentler .show transition for headline reveal */
+  .big-toast.slam {
+    animation: bigToastSlam 0.7s cubic-bezier(0.18, 1.6, 0.5, 1) forwards;
+  }
+  @keyframes bigToastSlam {
+    0%   { transform: translate(-50%, -50%) scale(3.2); opacity: 0; }
+    40%  { transform: translate(-50%, -50%) scale(0.92); opacity: 1; }
+    60%  { transform: translate(-50%, -50%) scale(1.06); }
+    80%  { transform: translate(-50%, -50%) scale(0.98); }
+    100% { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+  }
+
+  /* Sustained heartbeat after slam ends — gentle "alive" pulse during the rain */
+  .big-toast.heartbeat {
+    animation: bigToastHeartbeat 2.4s ease-in-out infinite;
+  }
+  @keyframes bigToastHeartbeat {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%      { transform: translate(-50%, -50%) scale(1.04); }
+  }
+
   .big-toast {
     position: absolute;
     top: 38%;
@@ -3745,11 +3826,16 @@
 
   /* =============== BIG money rain =============== */
   // Total duration: 18 seconds total (bills spawned over ~9s, last bill lands by ~12s,
-  // then 6 more seconds of bigToast dwell).
+  // then 6 more seconds of bigToast dwell with the final Caught total).
+  // V2 interactive mode: clickable bills + real-time caught-amount headline.
   //
-  // VISIBILITY HANDLING: if the user switches away during a rain, abort the entire round.
-  // Otherwise CSS animations pause while setTimeout keeps running — when the user
-  // returns, bills still visually float on screen but the round is logically over.
+  // VISIBILITY HANDLING: if the user switches away during a rain, we abort the whole
+  // round. Reasons:
+  //   1) CSS animations get paused on hidden tabs but setTimeout keeps running (throttled).
+  //      When the user returns, bills are still visually on-screen but session.endTime
+  //      has already passed → clicks silently fail. That mismatch is the bug we're fixing.
+  //   2) Rain is a sub-20s celebration — pausing/resuming across long absences makes no UX
+  //      sense. Aborting on hide is the simplest correct behaviour.
   function moneyRain(amount) {
     // If another rain is already in flight, cancel it cleanly first
     if (window.__rainAbort) {
@@ -3759,22 +3845,42 @@
     const stage = $('#rainStage');
     const vignette = $('#rainVignette');
     const bigToast = $('#bigToast');
-    $('#bigToastAmount').textContent = fmtCur(amount);
+    const amountEl = $('#bigToastAmount');
+    const labelEl = bigToast.querySelector('.label');
+    const originalLabelText = labelEl ? labelEl.textContent : '';
 
-    // Abort flag + cleanup function for visibility change
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Abort flag + cleanup function, registered globally so visibilitychange can fire it
     let aborted = false;
     function abortRain(reason) {
       if (aborted) return;
       aborted = true;
-      // If aborted because tab became hidden, remember it so we can show
-      // a "rain canceled" toast on return.
+      // If this abort was caused by the tab becoming hidden, remember it so we can
+      // show a "rain was canceled" toast when the user comes back.
+      // We persist on window (in-memory) so the flag survives the tab's lifetime
+      // but doesn't leak to other tabs or future sessions.
       if (reason === 'hidden') {
-        window.__rainCanceledByHide = { at: Date.now(), caughtTotal: 0, catchCount: 0 };
+        window.__rainCanceledByHide = {
+          at: Date.now(),
+          caughtTotal: window.__rainSession ? window.__rainSession.totalCaught : 0,
+          catchCount: window.__rainSession ? window.__rainSession.catchCount : 0,
+        };
       }
+      // Stop count-up loop
+      if (window.__rainSession) window.__rainSession.cancelCountUp = true;
+      // Tear down all visible elements immediately
       vignette.classList.remove('show');
-      bigToast.classList.remove('show');
+      bigToast.classList.remove('show', 'slam', 'heartbeat');
+      document.body.classList.remove('rain-active');
+      // Remove every in-flight bill / pop so nothing dangles on the screen
       stage.querySelectorAll('.bill').forEach(b => b.remove());
+      stage.querySelectorAll('.bill-pop').forEach(p => p.remove());
+      // Restore original label
+      if (labelEl && originalLabelText) labelEl.textContent = originalLabelText;
+      // Detach visibility listener
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      // Clear global handle
       if (window.__rainAbort === abortRain) window.__rainAbort = null;
     }
     function onVisibilityChange() {
@@ -3783,42 +3889,176 @@
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.__rainAbort = abortRain;
 
-    vignette.classList.add('show');
-    bigToast.classList.add('show');
+    // Lock the rest of the UI from being misclicked during the rain
+    // (re-enabled in the 18s cleanup below, or in abortRain)
+    document.body.classList.add('rain-active');
 
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // 120 bills (3x denser than before), spawned across 9 seconds to sustain density
-      const count = 120;
-      const spawnWindow = 9; // seconds — bills appear continuously over this window
+    vignette.classList.add('show');
+
+    // ----- Slam entry on bigToast -----
+    amountEl.textContent = fmtCur(amount);
+    bigToast.classList.remove('heartbeat', 'slam');
+    bigToast.classList.add('show', 'slam');
+    setTimeout(() => {
+      if (aborted) return;
+      bigToast.classList.remove('slam');
+      if (!prefersReduced) bigToast.classList.add('heartbeat');
+    }, 700);
+
+    // ----- Count-up animation on the dollar amount -----
+    if (!prefersReduced) {
+      const countDuration = 1200; // ms
+      const startTime = performance.now();
+      const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+      const animateCount = (now) => {
+        // Stop if user has already caught a bill (showCaughtTotal owns the field now)
+        if (window.__rainSession && window.__rainSession.cancelCountUp) return;
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / countDuration);
+        const current = easeOutCubic(t) * amount;
+        amountEl.textContent = fmtCur(current);
+        if (t < 1) requestAnimationFrame(animateCount);
+        else amountEl.textContent = fmtCur(amount);
+      };
+      requestAnimationFrame(animateCount);
+    }
+
+    // ----- Catch session: tracks player's caught bills for THIS rain -----
+    // Reset on every rain trigger; not persisted, not added to state.earned.
+    const rates = computeRates();
+    const perHour = rates.perHour;
+    // Per-catch reward range: [perHour * 0.5, perHour * 1.5]
+    // Floor to perHour=10 if salary not set, so behaviour stays sane for edge cases.
+    const effectivePerHour = perHour > 0 ? perHour : 10;
+    const minAmt = effectivePerHour * 0.5;
+    const maxAmt = effectivePerHour * 1.5;
+    // Catch window: clicks accepted for the entire visible duration (18s).
+    // Spawn ends at 9s, late-falling bills still tappable until 18s fade.
+    const session = { totalCaught: 0, catchCount: 0, endTime: Date.now() + 18000, switched: false };
+    window.__rainSession = session;
+
+    function randomCatchAmount() {
+      return minAmt + Math.random() * (maxAmt - minAmt);
+    }
+
+    // Switch bigToast from "Money Rain $1000" to "Caught $X" on first catch.
+    // Subsequent catches just update the amount in place (no re-slam thrash).
+    function showCaughtTotal() {
+      const isZh = (state && state.lang === 'zh');
+      if (!session.switched) {
+        // First catch: change label + cancel any in-flight count-up + brief re-slam
+        if (labelEl) labelEl.textContent = isZh ? '已接住' : 'Caught';
+        // Mark count-up as cancelled so it stops overwriting our value
+        session.cancelCountUp = true;
+        // Re-slam for a punchy reveal of the new mode
+        bigToast.classList.remove('heartbeat', 'slam');
+        void bigToast.offsetWidth;
+        bigToast.classList.add('slam');
+        // After slam ends, resume heartbeat
+        setTimeout(() => {
+          bigToast.classList.remove('slam');
+          if (!prefersReduced) bigToast.classList.add('heartbeat');
+        }, 700);
+        session.switched = true;
+      }
+      // Always update amount in real time
+      amountEl.textContent = fmtCur(session.totalCaught);
+    }
+
+    function onBillClick(bill, ev) {
+      if (bill.classList.contains('caught')) return;
+      if (Date.now() >= session.endTime) return; // round already over
+      ev.stopPropagation();
+
+      // Compute the bill's current on-screen position for the pop label
+      const rect = bill.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const popX = rect.left - stageRect.left + rect.width / 2;
+      const popY = rect.top - stageRect.top + rect.height / 2;
+
+      // Freeze the bill's rotation by reading its current computed transform
+      const styles = getComputedStyle(bill);
+      const matrix = styles.transform;
+      let currentRotDeg = 0;
+      if (matrix && matrix !== 'none' && matrix.startsWith('matrix(')) {
+        const vals = matrix.slice(7, -1).split(',').map(parseFloat);
+        currentRotDeg = Math.atan2(vals[1], vals[0]) * 180 / Math.PI;
+      }
+      bill.style.setProperty('--rNow', currentRotDeg + 'deg');
+
+      // Award a random amount
+      const caught = randomCatchAmount();
+      session.totalCaught += caught;
+      session.catchCount += 1;
+
+      // Mark caught (CSS animation hides it)
+      bill.classList.add('caught');
+
+      // Spawn the floating "+$X.XX" label at the bill's position
+      const pop = document.createElement('div');
+      pop.className = 'bill-pop';
+      pop.textContent = '+' + fmtCur(caught);
+      pop.style.left = popX + 'px';
+      pop.style.top = popY + 'px';
+      stage.appendChild(pop);
+      setTimeout(() => pop.remove(), 1100);
+
+      // bigToast updates in real time on every catch
+      showCaughtTotal();
+    }
+
+    // ----- Falling bills (130 bills, all catchable, with expanded hit area) -----
+    if (!prefersReduced) {
+      const count = 130;
+      const spawnWindow = 9; // seconds
       for (let i = 0; i < count; i++) {
         const bill = document.createElement('div');
-        bill.className = 'bill';
+        bill.className = 'bill catchable';
         bill.textContent = curSym();
-        const size = 0.7 + Math.random() * 0.9;
+        const size = 0.85 + Math.random() * 0.9; // range 0.85–1.75
         bill.style.width = (60 * size) + 'px';
         bill.style.height = (28 * size) + 'px';
         bill.style.fontSize = (1.1 * size) + 'rem';
         bill.style.left = (Math.random() * 100) + '%';
         bill.style.top = (-100 - Math.random() * 200) + 'px';
         const duration = 2.4 + Math.random() * 1.8;
-        // Spread spawn delays evenly across the spawn window + small jitter for organic feel
         const delay = (i / count) * spawnWindow + Math.random() * 0.4;
         bill.style.setProperty('--r0', (Math.random() * 60 - 30) + 'deg');
         bill.style.setProperty('--r1', (360 + Math.random() * 720) + 'deg');
         bill.style.animation = `fallDown ${duration}s linear ${delay}s forwards`;
+        bill.addEventListener('click', (ev) => onBillClick(bill, ev));
+        bill.addEventListener('touchstart', (ev) => { ev.preventDefault(); onBillClick(bill, ev); }, { passive: false });
         stage.appendChild(bill);
         setTimeout(() => bill.remove(), (duration + delay) * 1000 + 200);
       }
     }
 
-    // Keep bigToast + vignette visible for 18 seconds total
-    // (bills finish landing by ~12s, then heartbeat pulses for 6 more seconds)
+    // ----- Extended dwell: bills spawn for 9s, but bigToast stays until 18s -----
+    // After the rain ends, keep the bigToast (with final Caught total) pulsing for
+    // an additional ~6 seconds so the user can read the result.
+    //
+    // Timeline:
+    //   T=0      slam in, label="Money Rain", count-up to amount
+    //   T=0.7    switch to heartbeat
+    //   T=any    on first catch, label switches to "Caught", amount updates live
+    //   T=12     last bill has landed (no more new bills spawned after T=9)
+    //   T=12-18  heartbeat continues with final Caught total visible
+    //   T=18     fade out, UI re-enabled
+
+    // Final cleanup: fade everything at 18 seconds
     setTimeout(() => {
-      if (aborted) return;
+      if (aborted) return; // already cleaned up by abort path
       vignette.classList.remove('show');
-      bigToast.classList.remove('show');
+      bigToast.classList.remove('show', 'slam', 'heartbeat');
+      // Re-enable all UI interactions
+      document.body.classList.remove('rain-active');
+      // Detach the visibility listener now that the round is over
       document.removeEventListener('visibilitychange', onVisibilityChange);
       if (window.__rainAbort === abortRain) window.__rainAbort = null;
+      // Restore original label after fade-out completes
+      setTimeout(() => {
+        if (labelEl && originalLabelText) labelEl.textContent = originalLabelText;
+      }, 600);
     }, 18000);
   }
 
@@ -3914,11 +4154,17 @@
   /* =============== Global visibility listener =============== */
   // When the user returns to the tab, check if a money rain round was canceled
   // because they switched away. If so, show a brief toast so they understand
-  // what happened (otherwise the rain disappearing feels like a bug).
+  // what happened (otherwise the rain disappearing feels like a bug). If the
+  // user had already caught some bills, surface what they lost.
+  //
+  // Lifetime: this listener stays attached for the entire page lifetime, independent
+  // of any specific moneyRain() call's own visibilitychange listener (which detaches
+  // itself once a rain ends or aborts).
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) return;
+    if (document.hidden) return; // only care about "becoming visible"
     const flag = window.__rainCanceledByHide;
     if (!flag) return;
+    // Stale check: ignore if the abort was more than 60 seconds ago.
     if (Date.now() - flag.at > 60000) {
       window.__rainCanceledByHide = null;
       return;
@@ -3927,12 +4173,21 @@
     const toastEl = $('#toast');
     const toastText = $('#toast-text');
     if (!toastEl || !toastText) return;
-    const msg = isZh
-      ? '撒钱已取消（切换离开）'
-      : 'Money rain canceled (you switched away)';
+    // If user had caught some bills before switching, mention the lost amount.
+    let msg;
+    if (flag.catchCount > 0) {
+      msg = isZh
+        ? `撒钱已取消（切换离开）· 错过 ${fmtCur(flag.caughtTotal)}`
+        : `Money rain canceled (you switched away) · Lost ${fmtCur(flag.caughtTotal)}`;
+    } else {
+      msg = isZh
+        ? '撒钱已取消（切换离开）'
+        : 'Money rain canceled (you switched away)';
+    }
     toastText.textContent = msg;
     toastEl.classList.add('show');
     setTimeout(() => toastEl.classList.remove('show'), 3500);
+    // Consume the flag so it doesn't fire again
     window.__rainCanceledByHide = null;
   });
 
