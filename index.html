@@ -1031,6 +1031,29 @@
     transition: width 0.2s ease-out;
     box-shadow: 0 0 12px var(--accent-glow);
   }
+  /* "Next rain" hint below milestone progress bar */
+  .rain-reminder {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 0.7rem;
+  }
+  .rain-rem-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .rain-rem-target {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--accent-deep);
+    font-variant-numeric: tabular-nums;
+  }
+  .rain-reminder.is-done .rain-rem-target {
+    color: var(--text-dim);
+  }
 
   /* Daily goal (Pro) */
   .goal-card {
@@ -1995,6 +2018,10 @@
         <div class="progress-bar">
           <div class="progress-fill" id="ms-progress" style="width: 0%"></div>
         </div>
+        <div class="rain-reminder" id="rain-reminder">
+          <span class="rain-rem-label" data-i18n="page2.nextRain">Next rain</span>
+          <span class="rain-rem-target" id="rain-rem-target">—</span>
+        </div>
       </div>
 
       <div class="goal-card">
@@ -2254,6 +2281,8 @@
       'page2.persec': 'Per second',
       'page2.milestones': 'Milestones',
       'page2.next': 'Next milestone',
+      'page2.nextRain': 'Next rain',
+      'page2.nextRain.done': "Today's quota used",
       'takehome': 'After tax:',
       'goal.label': "Today's goal",
       'btn.pause': 'Pause',
@@ -2491,6 +2520,8 @@
       'page2.persec': '每秒钟',
       'page2.milestones': '里程碑',
       'page2.next': '下一里程碑',
+      'page2.nextRain': '下次撒钱',
+      'page2.nextRain.done': '今日撒钱已用完',
       'takehome': '税后:',
       'goal.label': '今日目标',
       'btn.pause': '暂停',
@@ -2728,7 +2759,12 @@
     milestoneStep: 5,
     // Free user rain: rain trigger amounts (perMin*10 and perMin*60)
     freeRainThresholds: [],
-    freeRainHit: 0
+    freeRainHit: 0,
+    lastRainTime: 0,
+    // Tracks earned amount at previous tick, used to detect "catch-up" frames
+    // (e.g. first frame after tab returns from background) so we can advance
+    // milestone counters without playing a stale, intrusive money-rain animation.
+    lastTickEarned: 0
   };
 
   /* =============== Helpers =============== */
@@ -3473,6 +3509,7 @@
     state.lastMilestone = 0;
     state.lastBigMilestone = 0;
     state.lastRainTime = 0;  // Reset rain throttle on new work session
+    state.lastTickEarned = 0; // Reset catch-up detector on new work session
     state.isPaused = false;
     document.body.classList.remove('is-paused');
 
@@ -3563,6 +3600,21 @@
         celebrate(reached * state.milestoneStep);
       }
 
+      // -------- Catch-up frame detection --------
+      // If a single tick's earned-delta is dramatically larger than a normal frame
+      // (e.g. the tab was backgrounded and rAF paused; first frame on return jumps
+      // forward by minutes-of-earnings at once), treat this as a "catch-up" frame:
+      // counters/state still advance to the correct values, but we DO NOT play the
+      // 18-second money-rain animation — it would arrive far after the moment it's
+      // supposed to celebrate and feel like an out-of-context ambush.
+      const prevTickEarned = state.lastTickEarned || earned;
+      const tickEarnDelta = earned - prevTickEarned;
+      state.lastTickEarned = earned;
+      // Threshold: more than 2 seconds of normal earnings crossed in one frame.
+      // Real frames at 60fps are ~16ms (≈0.016s of earnings), so 2s is ~125× normal.
+      // This easily separates legitimate frames from background-throttled catch-up.
+      const isCatchUpFrame = tickEarnDelta > rates.perMs * 2000;
+
       // BIG rain triggers
       // Safety throttle: under no circumstances can two rains fire within 1s of each other.
       // This is a belt-and-suspenders guard against pathological milestone configs.
@@ -3574,12 +3626,12 @@
         // Pro: every 5x milestone step
         const bigStep = state.milestoneStep * 5;
         const bigReached = Math.floor(earned / bigStep);
-        if (bigReached > state.lastBigMilestone && rainAllowed) {
+        if (bigReached > state.lastBigMilestone && rainAllowed && !isCatchUpFrame) {
           state.lastBigMilestone = bigReached;
           state.lastRainTime = Date.now();
           moneyRain(bigReached * bigStep);
         } else if (bigReached > state.lastBigMilestone) {
-          // Throttled: still advance the counter so we don't replay all skipped rains later.
+          // Throttled OR catch-up: advance counter so we don't replay all skipped rains later.
           state.lastBigMilestone = bigReached;
         }
       } else {
@@ -3589,19 +3641,75 @@
           if (earned >= nextThreshold) {
             const dayKey = 'pulse_free_rain_' + today();
             const todayCount = LS.get(dayKey, 0);
-            if (todayCount < 2 && rainAllowed) {
+            if (todayCount < 2 && rainAllowed && !isCatchUpFrame) {
               LS.set(dayKey, todayCount + 1);
               state.lastRainTime = Date.now();
               moneyRain(nextThreshold);
             }
+            // Always advance the index so we move on to the next threshold,
+            // whether the rain actually played or was suppressed/throttled.
             state.freeRainHit++;
           }
         }
       }
 
+      updateRainReminder(earned, rates);
+
       state.rafId = requestAnimationFrame(tick);
     };
     state.rafId = requestAnimationFrame(tick);
+  }
+
+  /* =============== Rain reminder (next money-rain target) =============== */
+  // Updates the small "Next Rain" line under the milestone bar each tick.
+  // Pro:  next bigStep target (every milestoneStep × 5)
+  // Free: next of the 2 daily thresholds (perMin*10, perMin*60), respecting 2/day cap
+  function updateRainReminder(earned, rates) {
+    const el = $('#rain-reminder');
+    const targetEl = $('#rain-rem-target');
+    if (!el || !targetEl) return;
+
+    let nextAmount = 0;
+    let exhausted = false;
+
+    if (state.isPro) {
+      const bigStep = state.milestoneStep * 5;
+      // Next bigStep boundary strictly above the current earned amount
+      const nextBigIdx = Math.floor(earned / bigStep) + 1;
+      nextAmount = nextBigIdx * bigStep;
+    } else {
+      // Free: respect the per-day quota AND the 2-threshold limit
+      const dayKey = 'pulse_free_rain_' + today();
+      const todayCount = LS.get(dayKey, 0);
+      if (state.freeRainHit >= state.freeRainThresholds.length || todayCount >= 2) {
+        exhausted = true;
+      } else {
+        nextAmount = state.freeRainThresholds[state.freeRainHit];
+      }
+    }
+
+    if (exhausted) {
+      el.classList.add('is-done');
+      targetEl.textContent = t('page2.nextRain.done');
+      return;
+    }
+    el.classList.remove('is-done');
+
+    const remaining = Math.max(0, nextAmount - earned);
+    const secsToGo = rates.perSec > 0 ? remaining / rates.perSec : 0;
+
+    let timeStr;
+    if (secsToGo < 1) {
+      timeStr = state.lang === 'zh' ? '即将' : 'soon';
+    } else if (secsToGo < 60) {
+      timeStr = `~${Math.ceil(secsToGo)}s`;
+    } else if (secsToGo < 3600) {
+      timeStr = `~${Math.ceil(secsToGo / 60)}m`;
+    } else {
+      timeStr = `~${(secsToGo / 3600).toFixed(1)}h`;
+    }
+
+    targetEl.textContent = `${fmtCur(nextAmount)} · ${timeStr}`;
   }
 
   /* =============== Small celebration =============== */
