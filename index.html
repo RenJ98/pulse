@@ -3360,16 +3360,18 @@
 
   // Three-tier pricing via Creem discount codes (no need for separate products):
   //   REGULAR   ($4.99) — no discount, base product price
-  //   SALE      ($2.99) — discount code PULSE_SALE  (-$2.00)
-  //   DEEP_SALE ($1.99) — discount code PULSE_DEEP  (-$3.00)
+  //   SALE      ($2.99) — discount code PULSESALE  (-$2.00)
+  //   DEEP_SALE ($1.99) — discount code PULSEDEEP  (-$3.00)
   //
   // ⚠️ BEFORE GOING LIVE you must create these two discount codes in Creem:
   //   Creem Dashboard → Commerce → Discounts → New Discount
-  //   1. Code: PULSE_SALE, type: amount-off, value: $2.00, applies to Pulse Pro
-  //   2. Code: PULSE_DEEP, type: amount-off, value: $3.00, applies to Pulse Pro
-  // Codes are appended as URL query params; Creem processes them server-side.
-  const CREEM_DISCOUNT_SALE = 'PULSE_SALE';
-  const CREEM_DISCOUNT_DEEP = 'PULSE_DEEP';
+  //   1. Code: PULSESALE, type: Fixed, amount: $2.00, applies to Pulse Pro
+  //   2. Code: PULSEDEEP, type: Fixed, amount: $3.00, applies to Pulse Pro
+  // Note: Creem requires discount codes to be uppercase letters and numbers
+  // only — no underscores or special characters. Codes are appended as URL
+  // query params; Creem processes them server-side.
+  const CREEM_DISCOUNT_SALE = 'PULSESALE';
+  const CREEM_DISCOUNT_DEEP = 'PULSEDEEP';
 
   // LEMON_CONFIG kept as alias so existing references (activeCheckoutUrl etc.)
   // don't break. Each tier passes a different discount_code via URL so the
