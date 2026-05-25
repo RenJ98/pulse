@@ -4,11 +4,10 @@
 
   <url>
     <loc>https://arknove.com/</loc>
-    <lastmod>2026-05-24</lastmod>
+    <lastmod>2026-05-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://arknove.com/" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://arknove.com/?lang=zh" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://arknove.com/" />
   </url>
 
@@ -52,7 +51,7 @@
     <loc>https://arknove.com/blog/</loc>
     <lastmod>2026-05-24</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.5</priority>
   </url>
 
   <url>
