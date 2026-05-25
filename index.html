@@ -54,10 +54,6 @@
 }
 </script>
 
-<!-- ========== Lemon Squeezy (for Pro purchases) ========== -->
-<!-- Loaded lazily; no perf cost until user opens Pro modal -->
-<script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
-
 <!-- ========== AdSense ========== -->
 <!-- Publisher ID: 7102501058294294 (review submitted 2026-05-24) -->
 <meta name="google-adsense-account" content="ca-pub-7102501058294294">
@@ -3362,12 +3358,26 @@
   const CREEM_PRODUCT_ID = 'prod_EiKuOYEhSerjp4nOcJEQb';
   const CREEM_CHECKOUT_URL = CREEM_BASE + CREEM_PRODUCT_ID;
 
+  // Three-tier pricing via Creem discount codes (no need for separate products):
+  //   REGULAR   ($4.99) — no discount, base product price
+  //   SALE      ($2.99) — discount code PULSE_SALE  (-$2.00)
+  //   DEEP_SALE ($1.99) — discount code PULSE_DEEP  (-$3.00)
+  //
+  // ⚠️ BEFORE GOING LIVE you must create these two discount codes in Creem:
+  //   Creem Dashboard → Commerce → Discounts → New Discount
+  //   1. Code: PULSE_SALE, type: amount-off, value: $2.00, applies to Pulse Pro
+  //   2. Code: PULSE_DEEP, type: amount-off, value: $3.00, applies to Pulse Pro
+  // Codes are appended as URL query params; Creem processes them server-side.
+  const CREEM_DISCOUNT_SALE = 'PULSE_SALE';
+  const CREEM_DISCOUNT_DEEP = 'PULSE_DEEP';
+
   // LEMON_CONFIG kept as alias so existing references (activeCheckoutUrl etc.)
-  // don't break. All three tiers point at the same Creem product for now.
+  // don't break. Each tier passes a different discount_code via URL so the
+  // price the user sees in the UI matches what Creem actually charges.
   const LEMON_CONFIG = {
-    CHECKOUT_URL_SALE:      CREEM_CHECKOUT_URL, // $2.99 promo (shown in UI, billed $4.99)
-    CHECKOUT_URL_DEEP_SALE: CREEM_CHECKOUT_URL, // $1.99 promo (shown in UI, billed $4.99)
-    CHECKOUT_URL_REGULAR:   CREEM_CHECKOUT_URL, // $4.99 regular
+    CHECKOUT_URL_SALE:      `${CREEM_CHECKOUT_URL}?discount_code=${CREEM_DISCOUNT_SALE}`,      // $2.99
+    CHECKOUT_URL_DEEP_SALE: `${CREEM_CHECKOUT_URL}?discount_code=${CREEM_DISCOUNT_DEEP}`,      // $1.99
+    CHECKOUT_URL_REGULAR:   CREEM_CHECKOUT_URL,                                                 // $4.99
     CHECKOUT_URL: CREEM_CHECKOUT_URL,
     get CHECKOUT_URL_LAUNCH() { return this.CHECKOUT_URL_SALE; },
     USE_LICENSE_VERIFICATION: false
@@ -3464,43 +3474,29 @@
     window.location.href = LEMON_CONFIG.CHECKOUT_URL;
   });
 
-  // Lemon Squeezy fires window.postMessage events on success.
-  // Listen for the success event and either:
-  //   (a) trust the event for instant unlock (simple, no backend), OR
-  //   (b) call your /api/verify-license endpoint with the order ID (secure)
-  window.addEventListener('message', (ev) => {
-    if (!ev.data || typeof ev.data !== 'object') return;
-    if (ev.data.event === 'Checkout.Success') {
-      if (LEMON_CONFIG.USE_LICENSE_VERIFICATION) {
-        // Production path: verify with your backend
-        const orderId = ev.data?.data?.order?.identifier;
-        verifyLicenseWithBackend(orderId);
-      } else {
-        // Simple path: trust the event for small price points (no backend needed)
-        activatePro();
-        closeAllModals();
-      }
-    }
-  });
-
-  async function verifyLicenseWithBackend(orderId) {
-    // Replace this URL with your own serverless endpoint
-    // (e.g. Cloudflare Worker that calls Lemon Squeezy's License API).
+  // STUB: future backend verification (currently unused).
+  // When/if you add a serverless backend to verify payments server-side via
+  // Creem's API (GET /v1/checkouts/{checkout_id}), call this from
+  // maybeActivateProFromReturnUrl() instead of activating Pro directly.
+  //
+  // Endpoint example (Cloudflare Worker):
+  //   POST /api/verify-checkout  body: { checkout_id }
+  //   → calls Creem API with your secret key (server-side, never exposed)
+  //   → returns { valid: true, product_id, status: 'paid' } if checkout is legit
+  //
+  // eslint-disable-next-line no-unused-vars
+  async function verifyCheckoutWithBackend(checkoutId) {
     try {
-      const res = await fetch('/api/verify-license', {
+      const res = await fetch('/api/verify-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId })
+        body: JSON.stringify({ checkout_id: checkoutId })
       });
       const data = await res.json();
-      if (data.valid) {
-        activatePro(data.license_key);
-        closeAllModals();
-      } else {
-        alert('License verification failed. Please email support@arknove.com.');
-      }
+      return data.valid && data.product_id === CREEM_PRODUCT_ID;
     } catch (err) {
-      console.error('License verify error:', err);
+      console.error('Checkout verify error:', err);
+      return false;
     }
   }
 
@@ -4204,19 +4200,69 @@
   });
 
   /* =============== Creem checkout return handler =============== */
-  // When Creem redirects user back after successful payment, the URL contains
-  // ?upgrade=success. We detect it on page load, activate Pro, show a toast,
-  // and clean the URL so reloading doesn't re-trigger the flow.
+  // When Creem redirects user back after successful payment, the URL contains:
+  //   ?upgrade=success&checkout_id=ch_xxx&order_id=ord_xxx&customer_id=cust_xxx&product_id=prod_xxx
+  // We detect it on page load, validate basic shape, dedupe by checkout_id,
+  // activate Pro, show a toast, and clean the URL.
   //
-  // Note: this is "trust the redirect" mode (no backend signature verification).
-  // For a $4.99 product, the small fraud risk is acceptable.
-  // To add backend verification, see the verifyLicenseWithBackend stub below.
+  // Security model: "trust the redirect" — we DON'T verify signatures server-
+  // side because this is a static site with no backend, and $4.99 doesn't
+  // justify the infrastructure. We do these cheap-but-meaningful checks:
+  //   1. checkout_id must be present and match ch_[alphanumeric]{15+} shape
+  //      → blocks naive ?upgrade=success-only URL probing
+  //   2. each checkout_id can only activate Pro once on this device
+  //      → blocks repeated triggering by refresh / back button
+  //   3. product_id (if Creem includes it) must match our Pulse Pro product
+  //      → blocks redirects from any unrelated Creem product
+  //
+  // What this still doesn't block: copying a real success URL to another
+  // browser/device — that requires backend verification. Acceptable for $4.99.
+  // To add real verification, see verifyCheckoutWithBackend stub below.
   function maybeActivateProFromReturnUrl() {
     const url = new URL(window.location.href);
     if (url.searchParams.get('upgrade') !== 'success') return;
+
+    // ---- Basic validation ----
+    const checkoutId = url.searchParams.get('checkout_id');
+    const returnedProductId = url.searchParams.get('product_id');
+
+    // checkout_id must look like a real Creem checkout id
+    if (!checkoutId || !/^ch_[A-Za-z0-9]{15,}$/.test(checkoutId)) {
+      // Silently ignore — don't tip off URL probers, don't break legitimate
+      // users with stale bookmarks
+      return;
+    }
+
+    // If product_id is present, make sure it's OUR product
+    if (returnedProductId && returnedProductId !== CREEM_PRODUCT_ID) {
+      return;
+    }
+
+    // Helper: strip all Creem-added query params from the URL
+    const cleanCreemParams = () => {
+      ['upgrade', 'checkout_id', 'order_id', 'customer_id', 'product_id',
+       'subscription_id', 'request_id', 'signature'].forEach(k => {
+        url.searchParams.delete(k);
+      });
+      const cleanUrl = url.pathname + (url.search || '') + url.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    };
+
+    // Dedupe: each checkout_id activates Pro only once on this device
+    const usedCheckouts = LS.get('pulse_used_checkouts', []);
+    if (usedCheckouts.includes(checkoutId)) {
+      cleanCreemParams();
+      return;
+    }
+    // Mark this checkout_id as used (keep last 50 to bound storage)
+    usedCheckouts.push(checkoutId);
+    if (usedCheckouts.length > 50) usedCheckouts.shift();
+    LS.set('pulse_used_checkouts', usedCheckouts);
+
     // Activate Pro
     activatePro();
     closeAllModals();
+
     // Show success toast (delayed slightly so i18n + state are ready)
     setTimeout(() => {
       const isZh = (state && state.lang === 'zh');
@@ -4230,10 +4276,10 @@
         setTimeout(() => toastEl.classList.remove('show'), 5000);
       }
     }, 300);
-    // Clean the URL so reload doesn't re-trigger
-    url.searchParams.delete('upgrade');
-    const cleanUrl = url.pathname + (url.search || '') + url.hash;
-    window.history.replaceState({}, '', cleanUrl);
+
+    // Clean the URL so reload doesn't re-trigger and so users don't share
+    // success URLs with sensitive query params
+    cleanCreemParams();
   }
 
   /* =============== Init =============== */
