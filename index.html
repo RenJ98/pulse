@@ -2177,12 +2177,15 @@
   </main>
 
   <!-- ===== AdSense slot ===== -->
+  <!--
+    Ad slot is disabled until AdSense is fully approved.
+    To re-enable later:
+      1) Create an ad unit in AdSense → get the data-ad-slot ID
+      2) Uncomment this entire block
+      3) Replace data-ad-slot="XXXXXXXXXX" with the real ID
+
   <div class="ad-slot" id="adSlot">
     <div class="ad-label" data-i18n="ad.label">Advertisement</div>
-    <!-- AdSense slot is disabled during review. After approval:
-         1) Create an ad unit in AdSense → get the data-ad-slot ID
-         2) Uncomment the <ins> tag below and fill in data-ad-slot
-         3) Remove the ad-placeholder div
     <ins class="adsbygoogle"
          style="display:block"
          data-ad-client="ca-pub-7102501058294294"
@@ -2190,10 +2193,8 @@
          data-ad-format="auto"
          data-full-width-responsive="true"></ins>
     <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    -->
-    <!-- Dev-only fallback; remove after AdSense is live -->
-    <div class="ad-placeholder" data-i18n="ad.placeholder">Ad space · Replace with AdSense unit</div>
   </div>
+  -->
 
   <footer class="footer">
     <span><span class="dot"></span><span data-i18n="footer.tagline">EST. 2026 · TIME IS MONEY</span></span>
@@ -2438,7 +2439,7 @@
       'footer.status.paused': 'PAUSED',
       'footer.status.done': 'CLOCKED OUT',
       'ad.label': 'Advertisement',
-      'ad.placeholder': 'Ad space · Replace with AdSense unit',
+      'ad.placeholder': '',
       'weekdays': ['SUN','MON','TUE','WED','THU','FRI','SAT'],
 
       // Info / FAQ
@@ -2678,7 +2679,7 @@
       'footer.status.paused': '已暂停',
       'footer.status.done': '已下班',
       'ad.label': '广告',
-      'ad.placeholder': '广告位 · 上线时由 AdSense 接管',
+      'ad.placeholder': '',
       'weekdays': ['日','一','二','三','四','五','六'],
 
       'info.how.title': '如何使用',
