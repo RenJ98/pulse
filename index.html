@@ -1879,6 +1879,28 @@ function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', 'G-VPV3Q2JY9R');
 </script>
+
+<!-- SEO: strip stale/unwanted URL params that don't drive any app behavior.
+     This prevents Google from indexing ?lang=zh, ?ref=, ?utm_*, etc. as
+     separate "alternate" pages even though canonical already covers them. -->
+<script>
+(function () {
+  try {
+    var url = new URL(window.location.href);
+    var paramsToStrip = ['lang', 'ref', 'fbclid', 'gclid', 'msclkid',
+                         'utm_source', 'utm_medium', 'utm_campaign',
+                         'utm_term', 'utm_content'];
+    var changed = false;
+    paramsToStrip.forEach(function (k) {
+      if (url.searchParams.has(k)) { url.searchParams.delete(k); changed = true; }
+    });
+    if (changed) {
+      var clean = url.pathname + (url.search || '') + url.hash;
+      window.history.replaceState({}, '', clean);
+    }
+  } catch (e) { /* fail silent — must never block page load */ }
+})();
+</script>
 </head>
 <body class="theme-gold lang-en">
 <div class="app">
